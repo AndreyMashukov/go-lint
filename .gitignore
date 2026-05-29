@@ -1,0 +1,3 @@
+/go-lint
+*.test
+coverage.out

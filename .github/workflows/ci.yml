@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Format
+        run: |
+          # testdata/ holds intentionally-bad fixtures the analyzers detect;
+          # they live outside the build graph and must not be reformatted.
+          files=$(find . -name '*.go' -not -path '*/testdata/*' -not -path '*/.git/*')
+          unformatted=$(gofmt -l $files)
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt found unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build -o ./bin/go-lint ./cmd/go-lint
+
+      - name: Dogfood — go-lint lints itself
+        run: ./bin/go-lint ./...
